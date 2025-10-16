@@ -14,19 +14,19 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 220 0% 98%;
+  --background: 220 10% 97%;
 
   --foreground: 220 15% 15%;
 
   --border: 220 10% 88%;
 
-  --card: 220 5% 96%;
+  --card: 220 5% 99%;
 
   --card-foreground: 220 15% 18%;
 
   --card-border: 220 10% 90%;
 
-  --sidebar: 220 5% 94%;
+  --sidebar: 220 8% 95%;
 
   --sidebar-foreground: 220 15% 20%;
 
@@ -42,13 +42,13 @@
 
   --sidebar-ring: 210 90% 60%;
 
-  --popover: 220 5% 92%;
+  --popover: 220 5% 98%;
 
   --popover-foreground: 220 15% 22%;
 
   --popover-border: 220 10% 84%;
 
-  --primary: 210 95% 48%;
+  --primary: 210 95% 58%;
 
   --primary-foreground: 210 10% 98%;
 
@@ -60,11 +60,11 @@
 
   --muted-foreground: 220 12% 35%;
 
-  --accent: 220 12% 84%;
+  --accent: 280 75% 60%;
 
-  --accent-foreground: 220 15% 28%;
+  --accent-foreground: 280 10% 98%;
 
-  --destructive: 0 72% 48%;
+  --destructive: 0 72% 55%;
 
   --destructive-foreground: 0 10% 98%;
 
@@ -76,10 +76,22 @@
   --chart-4: 38 88% 45%;
   --chart-5: 0 68% 48%;
 
+  --success: 142 70% 45%;
+  --success-foreground: 142 10% 98%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 38 10% 10%;
+  --info: 210 95% 58%;
+  --info-foreground: 210 10% 98%;
+
+  --syntax-keyword: 210 80% 65%;
+  --syntax-string: 142 60% 55%;
+  --syntax-number: 38 85% 60%;
+  --syntax-comment: 220 20% 50%;
+
   --font-sans: Inter, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: JetBrains Mono, monospace;
-  --radius: .5rem;
+  --radius: .375rem;
   --shadow-2xs: 0px 1px 2px 0px hsl(220 15% 8% / 0.05);
   --shadow-xs: 0px 1px 3px 0px hsl(220 15% 8% / 0.08);
   --shadow-sm: 0px 2px 4px -1px hsl(220 15% 8% / 0.06), 0px 1px 2px -1px hsl(220 15% 8% / 0.06);
@@ -166,7 +178,7 @@
 
   --popover-border: 220 10% 28%;
 
-  --primary: 210 95% 48%;
+  --primary: 210 95% 58%;
 
   --primary-foreground: 210 10% 98%;
 
@@ -178,11 +190,11 @@
 
   --muted-foreground: 220 6% 68%;
 
-  --accent: 220 12% 26%;
+  --accent: 280 75% 60%;
 
-  --accent-foreground: 220 8% 86%;
+  --accent-foreground: 280 10% 98%;
 
-  --destructive: 0 72% 48%;
+  --destructive: 0 72% 55%;
 
   --destructive-foreground: 0 10% 98%;
 
@@ -193,6 +205,18 @@
   --chart-3: 280 75% 68%;
   --chart-4: 38 92% 58%;
   --chart-5: 0 72% 62%;
+
+  --success: 142 70% 45%;
+  --success-foreground: 142 10% 98%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 38 10% 10%;
+  --info: 210 95% 58%;
+  --info-foreground: 210 10% 98%;
+
+  --syntax-keyword: 210 80% 65%;
+  --syntax-string: 142 60% 55%;
+  --syntax-number: 38 85% 60%;
+  --syntax-comment: 220 20% 50%;
 
   --shadow-2xs: 0px 1px 2px 0px hsl(220 15% 0% / 0.20);
   --shadow-xs: 0px 1px 3px 0px hsl(220 15% 0% / 0.25);
