@@ -1,11 +1,22 @@
 import OpenAI from "openai";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let cachedOpenAI: OpenAI | null = null;
+function getOpenAIClient(): OpenAI {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OpenAI API key not configured. Set OPENAI_API_KEY to use AI features.");
+  }
+  if (!cachedOpenAI) {
+    cachedOpenAI = new OpenAI({ apiKey });
+  }
+  return cachedOpenAI;
+}
 
 export async function generateVyOSConfiguration(intent: string): Promise<{ configuration: string; explanation: string }> {
   try {
-    const response = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    const response = await client.chat.completions.create({
       model: "gpt-5",
       messages: [
         {
@@ -37,7 +48,25 @@ Rules:
     };
   } catch (error) {
     console.error('OpenAI API error:', error);
-    throw new Error('Failed to generate configuration: ' + (error as Error).message);
+    const message = (error as any)?.message || '';
+    // Fallback for quota exceeded or rate limit
+    if (typeof message === 'string' && (message.includes('429') || message.toLowerCase().includes('quota'))) {
+      return {
+        configuration: [
+          "# Fallback configuration (AI quota exceeded)",
+          "set system host-name 'vyos'",
+          "set service ssh port '22'",
+          "# Allow SSH from local LAN (example)",
+          "set firewall name LAN_LOCAL default-action 'drop'",
+          "set firewall name LAN_LOCAL rule 10 action 'accept'",
+          "set firewall name LAN_LOCAL rule 10 protocol 'tcp'",
+          "set firewall name LAN_LOCAL rule 10 destination port '22'",
+          "set firewall name LAN_LOCAL rule 10 source address '192.168.0.0/24'",
+        ].join('\n'),
+        explanation: 'AI quota exceeded. Returned a basic SSH allow example configuration.',
+      };
+    }
+    throw new Error('Failed to generate configuration: ' + message);
   }
 }
 

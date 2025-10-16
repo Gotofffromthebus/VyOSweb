@@ -128,3 +128,31 @@ export const aiGenerationResponseSchema = z.object({
 });
 
 export type AIGenerationResponse = z.infer<typeof aiGenerationResponseSchema>;
+
+// Router Apply schemas
+export const routerApplyRequestSchema = z.object({
+  host: z.string().min(1, "Host is required"),
+  port: z.number().int().positive().optional().default(22),
+  username: z.string().min(1, "Username is required"),
+  password: z.string().optional(),
+  privateKey: z.string().optional(),
+  configuration: z.string().min(1, "Configuration is required"),
+  commit: z.boolean().optional().default(true),
+  save: z.boolean().optional().default(true),
+  dryRun: z.boolean().optional().default(false),
+}).refine((data) => !!data.password || !!data.privateKey, {
+  message: "Either password or privateKey must be provided",
+  path: ["password"],
+});
+
+export type RouterApplyRequest = z.infer<typeof routerApplyRequestSchema>;
+
+export const routerApplyResponseSchema = z.object({
+  applied: z.boolean(),
+  commit: z.boolean(),
+  saved: z.boolean(),
+  dryRun: z.boolean(),
+  logs: z.array(z.string()),
+});
+
+export type RouterApplyResponse = z.infer<typeof routerApplyResponseSchema>;

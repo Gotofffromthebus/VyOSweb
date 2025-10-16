@@ -1,6 +1,9 @@
 import { useState, useCallback, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
   Network, 
@@ -23,6 +26,7 @@ import {
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TopologyNode, TopologyConnection } from "@shared/schema";
+import { useMemo } from "react";
 
 const nodeIcons = {
   router: Router,
@@ -45,10 +49,36 @@ export function TopologyCanvas() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [draggingNode, setDraggingNode] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [sshOpen, setSshOpen] = useState(false);
+  const [sshHost, setSshHost] = useState("");
+  const [sshPort, setSshPort] = useState(22);
+  const [sshUser, setSshUser] = useState("");
 
   const { data: nodes = [] } = useQuery<TopologyNode[]>({
     queryKey: ["/api/topology/nodes"],
   });
+
+  const reachability = useMemo(() => new Map<string, { ok: boolean; ms?: number }>(), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function pingNode(n: TopologyNode) {
+      if (n.type !== 'router') return;
+      const ssh = (n.properties as any)?.ssh;
+      if (!ssh?.host) return;
+      try {
+        const res = await fetch(`/api/routers/check?host=${encodeURIComponent(ssh.host)}&port=${ssh.port || 22}`);
+        const ok = res.ok;
+        const data = ok ? await res.json() : {};
+        if (!cancelled) reachability.set(n.id, { ok, ms: data.ms });
+      } catch {
+        if (!cancelled) reachability.set(n.id, { ok: false });
+      }
+    }
+    nodes.forEach(pingNode);
+    const id = setInterval(() => nodes.forEach(pingNode), 10000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [nodes, reachability]);
 
   const { data: connections = [] } = useQuery<TopologyConnection[]>({
     queryKey: ["/api/topology/connections"],
@@ -122,6 +152,18 @@ export function TopologyCanvas() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/topology/nodes"] });
+    },
+  });
+
+  const updateNodePropsMutation = useMutation({
+    mutationFn: async (data: { id: string; properties: Record<string, any> }) => {
+      return apiRequest("PATCH", `/api/topology/nodes/${data.id}`, {
+        properties: data.properties,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/topology/nodes"] });
+      setSshOpen(false);
     },
   });
 
@@ -290,7 +332,12 @@ export function TopologyCanvas() {
                 } transition-all hover-elevate`}>
                   <div className="flex flex-col items-center gap-2 min-w-[80px]">
                     <Icon className="h-8 w-8" />
-                    <span className="text-xs font-medium text-center">{node.label}</span>
+                    <span className="text-xs font-medium text-center flex items-center gap-1">
+                      {node.label}
+                      {node.type === 'router' && (
+                        <span className={`inline-block h-2 w-2 rounded-full ${reachability.get(node.id)?.ok ? 'bg-green-500' : 'bg-red-500'}`} title={reachability.get(node.id)?.ok ? `SSH ${reachability.get(node.id)?.ms ?? ''}ms` : 'unreachable'} />
+                      )}
+                    </span>
                   </div>
                 </Card>
               </div>
@@ -345,7 +392,19 @@ export function TopologyCanvas() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" data-testid="button-configure-node">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                data-testid="button-configure-node"
+                onClick={() => {
+                  const node = nodes.find(n => n.id === selectedNode);
+                  const ssh = (node?.properties as any)?.ssh || {};
+                  setSshHost(ssh.host || "");
+                  setSshPort(ssh.port || 22);
+                  setSshUser(ssh.username || "");
+                  setSshOpen(true);
+                }}
+              >
                 Configure
               </Button>
               <Button 
@@ -360,6 +419,44 @@ export function TopologyCanvas() {
           </div>
         </div>
       )}
+      <Dialog open={sshOpen} onOpenChange={setSshOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>SSH Settings</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid grid-cols-4 items-center gap-2">
+              <Label className="text-right">Host</Label>
+              <Input className="col-span-3" value={sshHost} onChange={(e) => setSshHost(e.target.value)} placeholder="192.168.0.200" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-2">
+              <Label className="text-right">Port</Label>
+              <Input className="col-span-3" type="number" value={sshPort} onChange={(e) => setSshPort(parseInt(e.target.value || "22", 10))} />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-2">
+              <Label className="text-right">Username</Label>
+              <Input className="col-span-3" value={sshUser} onChange={(e) => setSshUser(e.target.value)} placeholder="vyos" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setSshOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!selectedNode) return;
+                const node = nodes.find(n => n.id === selectedNode);
+                const baseProps = (node?.properties as any) || {};
+                updateNodePropsMutation.mutate({
+                  id: selectedNode,
+                  properties: { ...baseProps, ssh: { host: sshHost, port: sshPort, username: sshUser } },
+                });
+              }}
+              disabled={!sshHost || !sshUser || !selectedNode}
+            >
+              Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

@@ -26,13 +26,15 @@ interface ConfigEditorProps {
   validation?: ValidationError[];
   onSave?: (config: string) => void;
   readOnly?: boolean;
+  onChange?: (config: string) => void;
 }
 
 export function ConfigEditor({ 
   initialConfig = "", 
   validation = [], 
   onSave,
-  readOnly = false 
+  readOnly = false,
+  onChange,
 }: ConfigEditorProps) {
   const [config, setConfig] = useState(initialConfig);
   const [activeTab, setActiveTab] = useState("editor");
@@ -149,7 +151,11 @@ export function ConfigEditor({
           <ScrollArea className="h-full rounded-md border border-border">
             <textarea
               value={config}
-              onChange={(e) => setConfig(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setConfig(next);
+                if (onChange) onChange(next);
+              }}
               className="w-full h-full min-h-[400px] p-4 bg-transparent font-mono text-sm leading-relaxed focus:outline-none resize-none"
               placeholder="Enter VyOS configuration here..."
               readOnly={readOnly}

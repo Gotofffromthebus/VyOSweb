@@ -7,9 +7,13 @@ import {
   insertTopologyNodeSchema,
   insertTopologyConnectionSchema,
   insertIntentHistorySchema,
-  aiGenerationRequestSchema 
+  aiGenerationRequestSchema,
+  routerApplyRequestSchema,
 } from "@shared/schema";
 import { generateVyOSConfiguration, validateVyOSConfiguration, suggestCommands } from "./openai";
+import { applyVyOSConfig, testSshCommand } from "./vyos";
+import net from "net";
+import { spawn } from "child_process";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -255,6 +259,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(item);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Router apply endpoint
+  app.post("/api/routers/apply", async (req, res) => {
+    try {
+      const input = routerApplyRequestSchema.parse(req.body);
+      // Try native first; if auth fails, fallback to netmiko
+      try {
+        const result = await applyVyOSConfig(input);
+        return res.json(result);
+      } catch (nativeErr: any) {
+        // Fallback with Python netmiko
+        const py = spawn("python3", ["server/py_apply.py"], { stdio: ["pipe", "pipe", "pipe"] });
+        py.stdin.write(JSON.stringify(input));
+        py.stdin.end();
+        let out = "", err = "";
+        py.stdout.on("data", (d) => (out += d.toString()));
+        py.stderr.on("data", (d) => (err += d.toString()));
+        py.on("close", (code) => {
+          if (!out && err) {
+            return res.status(500).json({ error: err || 'netmiko failed' });
+          }
+          try {
+            const parsed = JSON.parse(out);
+            if (parsed.ok) {
+              return res.json({ applied: !!parsed.applied, commit: !!parsed.commit, saved: !!parsed.saved, dryRun: !!parsed.dryRun, logs: parsed.logs || [] });
+            }
+            return res.status(400).json({ error: parsed.error || 'apply failed', logs: parsed.logs || [] });
+          } catch (e: any) {
+            return res.status(500).json({ error: 'invalid netmiko output', detail: out || err });
+          }
+        });
+      }
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Router reachability check (TCP)
+  app.get("/api/routers/check", async (req, res) => {
+    const host = (req.query.host as string) || "";
+    const port = parseInt((req.query.port as string) || "22", 10);
+    const timeoutMs = 3000;
+    if (!host) return res.status(400).json({ ok: false, error: "host required" });
+    const started = Date.now();
+    const socket = new net.Socket();
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => {
+      const ms = Date.now() - started;
+      socket.destroy();
+      res.json({ ok: true, ms });
+    });
+    socket.once("timeout", () => {
+      socket.destroy();
+      res.status(408).json({ ok: false, error: "timeout" });
+    });
+    socket.once("error", (err) => {
+      socket.destroy();
+      res.status(502).json({ ok: false, error: err.message });
+    });
+    socket.connect(port, host);
+  });
+
+  // Router SSH simple command test
+  app.post("/api/routers/test", async (req, res) => {
+    try {
+      const { host, port, username, password, privateKey, command } = req.body || {};
+      if (!host || !username) return res.status(400).json({ ok: false, error: 'host and username required' });
+      const out = await testSshCommand({ host, port, username, password, privateKey, command });
+      res.json(out);
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
     }
   });
 

@@ -17,6 +17,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={TopologyPage} />
+      <Route path="/topology" component={TopologyPage} />
       <Route path="/configurations" component={ConfigurationsPage} />
       <Route path="/templates" component={TemplatesPage} />
       <Route path="/history" component={HistoryPage} />
